@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skin lesion</title>
+    <script type="text/javascript" src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
+    <style>
+      #video {
+        width: 320px;
+        height: 240px;
+        padding: 3%;
+      }
+      #photo {
+        width: 320px;
+        height: 240px;
+      }
+      #canvas {
+        display: none;
+      }
+      .camera {
+        width: 340px;
+        display: inline-block;
+      }
+      .output {
+        width: 340px;
+        display: inline-block;
+      }
+
+      .contentarea {
+        display: flex;
+        flex-direction: column;
+        font-size: 16px;
+        font-family: Arial;
+        text-align: center;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #111; /* Màu nền tối */
+        color: #fff; /* Màu văn bản trắng */
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .form-container {
+        background-color: #fff; /* Màu nền sáng của biểu mẫu */
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Hiển thị đổ bóng */
+        color: black;
+        height: 85vh;
+        overflow-y: scroll;
+        margin: auto;
+        width: 340px;
+      }
+
+      .form-container h2 {
+        text-align: center;
+      }
+
+      img {
+        width: 320px;
+        height: 240px;
+        padding: 3%;
+      }
+      .loader {
+        padding: 20px;
+        position: fixed;
+        display: flex;
+        height: 85vh;
+        width: 340px;
+        border-radius: 10px;
+        margin: auto;
+        justify-content: center;
+        align-items: center;
+        background-color: #f7f9fd;
+        transition: opacity 0.75s visibility 0.75s;
+        visibility: hidden;
+      }
+      .loader-hidden {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .loader::after {
+        content: "";
+        width: 75px;
+        height: 75px;
+        border: 15px solid #dddddd;
+        border-top-color: #7449f5;
+        border-radius: 50%;
+        animation: loading 0.75s ease infinite;
+      }
+
+      @keyframes loading {
+        from {
+          transform: rotate(0turn);
+        }
+        to {
+          transform: rotate(1turn);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="form-container">
+      <h2>Skin lesion</h2>
+      <div class="cam" hidden>
+        <div><button id="flip_btn">Change Facing Mode</button></div>
+        <div class="contentarea">
+          <div class="camera">
+            <video id="video" autoplay playsinline></video>
+          </div>
+          <div><button id="snap_btn">Take photo</button></div>
+          <canvas id="canvas"></canvas>
+        </div>
+      </div>
+      <div id="preview" hidden>
+        <img id="photo">
+        <button id="capture_another_image_type">
+          Capture another image
+        </button>
+      </div>
+      <form enctype="multipart/form-data" method="POST" id="form">
+        <input name="img" type="file" id="file"/><br />
+        <button id="upload_image_type">
+          Upload image
+        </button>
+        <button id="capture_image_type">
+          Capture image
+        </button>
+        <input type="submit" />
+      </form>
+      <br />
+      <div>
+        <img id="result" hidden>
+        <div>
+          <p>Result: <span id="pred"></span></p>
+        </div>
+        <div id="suggest_container" hidden>
+        </div>
+      </div>
+    </div>
+    <div class="loader"></div>
+  </body>
+  <script>
+    (function () {
+      var video = null;
+      var canvas = null;
+      var photo = null;
+      var snap_btn = null;
+      var picture = null;
+      var preview_img = null;
+      var facing_mode_user = true;
+
+      btn_upload_image = document.querySelector("#upload_image_type")
+      btn_upload_image.hidden = true
+      btn_capture_image = document.querySelector("#capture_image_type")
+      btn_capture_image.hidden = false
+      btn_capture_another_image = document.querySelector("#capture_another_image_type")
+
+      video = document.getElementById("video");
+      canvas = document.getElementById("canvas");
+      photo = document.getElementById("photo");
+      snap_btn = document.getElementById("snap_btn");
+      preview_img = document.getElementById("preview");
+
+      var webcam = null;
+
+      var img_preview_upload = document.getElementById("file");
+      img_preview_upload.addEventListener("change", function(event) {
+        let image = URL.createObjectURL(event.target.files[0]);
+        preview_img.hidden = false
+        photo.setAttribute("src", image)
+
+        btn_capture_another_image.hidden = true
+      });
+
+      function getDynamicFilename() {
+        const date = new Date();
+        const formattedDate = date.toISOString().replace(/T|:|\./g, '');
+        return `image-${formattedDate}.jpg`;
+      }
+      function set_value(src, pred, response) {
+        let img = document.querySelector("#result");
+        let result = document.querySelector("#pred");
+        img.hidden = false
+
+        let suggest_container = document.querySelector("#suggest_container");
+        suggest_container.hidden = false
+        suggest_container.innerHTML = '';
+
+        img.setAttribute("src", src);
+        result.innerHTML = `<strong>${pred}</strong>`;
+
+        const paragraphs = response.split('\n\n');
+        paragraphs.forEach(paragraph => {
+          const paragraphElement = document.createElement('p');
+          paragraphElement.textContent = paragraph;
+          suggest_container.appendChild(paragraphElement);
+        });
+        const loader = document.querySelector(".loader");
+        loader.style.visibility = "hidden";
+      }
+      document
+        .querySelector("#snap_btn")
+        .addEventListener("click", function (e) {
+          e.preventDefault();
+          picture = webcam.snap()
+          preview_img.hidden = false
+          photo.setAttribute("src", picture)
+
+          btn_capture_another_image = document.querySelector("#capture_another_image_type")
+          btn_capture_another_image.hidden = false
+
+          cam = document.querySelector(".cam");
+          cam.hidden = true;
+          if (cam.hidden == true) {
+            webcam.stop()
+          }
+        });
+      document
+        .querySelector("#flip_btn")
+        .addEventListener("click", function (e) {
+          webcam.stop()
+          if (facing_mode_user == true) {
+            webcam = new Webcam(video, "environment", canvas);
+            facing_mode_user = false
+            webcam.start().then(result =>{
+              console.log("webcam environment started");
+            }).catch(err => {
+              console.log(err);
+            });
+          } else {
+            webcam = new Webcam(video, "user", canvas);
+            facing_mode_user = true
+            webcam.start().then(result =>{
+              console.log("webcam user started");
+            }).catch(err => {
+              console.log(err);
+            });
+          }
+        });
+      document
+        .querySelector("#upload_image_type")
+        .addEventListener("click", function (e) {
+          e.preventDefault();
+
+          file = document.querySelector("#file");
+          file.hidden = false;
+          file.value = '';
+
+          cam = document.querySelector(".cam");
+          cam.hidden = true;
+
+          btn_upload_image.hidden = true
+          btn_capture_image.hidden = false
+
+          btn_capture_another_image = document.querySelector("#capture_another_image_type")
+          btn_capture_another_image.hidden = true
+
+          if (cam.hidden == true) {
+            webcam.stop()
+          }
+        });
+      
+      document
+        .querySelector("#capture_image_type")
+        .addEventListener("click", function (e) {
+          e.preventDefault();
+          preview_img.hidden = true
+          photo.removeAttribute("src")
+          file = document.querySelector("#file");
+          file.hidden = true;
+
+          cam = document.querySelector(".cam");
+          cam.hidden = false;
+
+          btn_upload_image.hidden = false
+          btn_capture_image.hidden = true
+          if (cam.hidden == false) {
+            webcam = new Webcam(video, "user", canvas);
+            facing_mode_user = true
+            webcam.start().then(result =>{
+              console.log("webcam user started");
+            }).catch(err => {
+              console.log(err);
+            });
+          }
+        });
+
+      document
+        .querySelector("#capture_another_image_type")
+        .addEventListener("click", function (e) {
+          e.preventDefault();
+          cam = document.querySelector(".cam");
+          cam.hidden = false;
+          preview_img.hidden = true
+          photo.removeAttribute("src")
+          if (facing_mode_user == false) {
+            webcam = new Webcam(video, "environment", canvas);
+            facing_mode_user = false
+            webcam.start().then(result =>{
+              console.log("webcam environment started");
+            }).catch(err => {
+              console.log(err);
+            });
+          } else {
+            webcam = new Webcam(video, "user", canvas);
+            facing_mode_user = true
+            webcam.start().then(result => {
+              console.log("webcam user started");
+            }).catch(err => {
+              console.log(err);
+            });
+          }
+        });
+
+      document.querySelector("#form").addEventListener("submit", function (e) {
+        e.preventDefault();
+        let dataform = null;
+        const loader = document.querySelector(".loader");
+        loader.style.visibility = "visible";
+        const img_submit = document.getElementById("photo");
+        const canvas_a = document.getElementById("canvas");
+        const ctx = canvas_a.getContext("2d");
+        ctx.drawImage(img_submit, 0, 0, img_submit.clientWidth, img_submit.clientHeight);
+        canvas_a.toBlob(function (blob) {
+          dataform = new FormData();
+          const desiredFilename = getDynamicFilename();
+          dataform.append("img", blob, desiredFilename);
+          fetch("/detect", {
+            method: "POST",
+            body: dataform,
+          })
+            .then((res) => {
+              return res.json()
+            })
+            .then((res) => {
+              set_value(res.static, res.preds, res.bot_response)
+            });
+        });
+      });
+    })();
+  </script>
+</html>
