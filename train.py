@@ -63,16 +63,26 @@ if __name__ == "__main__":
     checkpoint_callback = ModelCheckpoint(
         "./saved_model",
         monitor="val_loss",
-        save_top_k=3,
+        save_top_k=1,
         filename=args.model_name + "_{epoch:02d}_{val_loss:.2f}",
     )
 
-    trainer = pl.Trainer(
+    # Create and train the lightweight model
+    trained_model = lit_model.model
+    lightweight_model = model.get_lightweight_model(trained_model)
+
+    lit_lightweight_model = LitModel(
+        model=lightweight_model,
+        num_classes=args.num_classes,
+        lr=args.lr,
+    )
+
+    trainer_lightweight = pl.Trainer(
         max_epochs=args.epochs,
         accelerator="auto",
         devices="auto",
-        logger=CSVLogger("./log", name=f"{args.model_name}_logs", version=0),
+        logger=CSVLogger("./log", name=f"{args.model_name}_lightweight_logs", version=0),
         callbacks=[checkpoint_callback],
     )
 
-    trainer.fit(lit_model, train_loader, val_loader)
+    trainer_lightweight.fit(lit_lightweight_model, train_loader, val_loader)

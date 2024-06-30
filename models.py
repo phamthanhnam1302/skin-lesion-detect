@@ -1,6 +1,7 @@
 import torch
 import torchvision
-
+import torch.nn as nn
+from lightweight_model import LightweightModule
 
 class Models:
     def __init__(
@@ -92,3 +93,12 @@ class Models:
             print("Invalid model name, exiting...")
             exit()
         return model
+    def get_lightweight_model(self, trained_model) -> torch.nn.Module:
+        # Extract the features from the last layer of the trained model
+        modules = list(trained_model.children())[:-1]  # Remove the last layer (classifier)
+        feature_extractor = nn.Sequential(*modules)
+        lightweight_model = nn.Sequential(
+            feature_extractor,
+            LightweightModule(num_classes=self.num_classes)
+        )
+        return lightweight_model
