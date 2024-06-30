@@ -1,1 +1,1 @@
-# lightweight_skin_lesion_detection
+# Lightweight Skin Lesion Classification

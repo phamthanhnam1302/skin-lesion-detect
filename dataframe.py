@@ -55,7 +55,7 @@ class Init_dataframe:
 
         df_train = df_original[df_original['train_or_val'] == 'train']
 
-        data_aug_rate = {0: 18, 1: 11, 2: 4, 3: 53, 4: 4, 5: 0, 6: 44, 7: 16}
+        data_aug_rate = {0: 18, 1: 11, 2: 4, 3: 53, 4: 4, 5: 0, 6: 44, 7: 7}
         for i in range(7):
             if data_aug_rate[i]:
                 temp = df_train.loc[df_train['encoded_dx'] == i,:]

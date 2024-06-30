@@ -13,11 +13,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_name",
         help="Choose model efficientnet, resnet, maxvit",
-        default="maxvit",
+        default="resnet",
     )
     parser.add_argument("--img_path", help="Path to image")
     parser.add_argument("--ckpt_path", help="Path to checkpoint")
-    parser.add_argument("--img_size", type=int, default=224)
+    parser.add_argument("--img_size", type=int, default=256)
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
