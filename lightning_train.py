@@ -24,7 +24,7 @@ class LitModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        x = x.float()
+        x = x.float()  # Ensure input tensor is float
 
         logits = self(x)
         loss = self.loss_fn(logits, y)
@@ -36,15 +36,13 @@ class LitModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        x = x.float()
+        x = x.float()  # Ensure input tensor is float
 
         logits = self(x)
         loss = self.loss_fn(logits, y)
         self.log("val_loss", loss, sync_dist=True, prog_bar=True)
         acc = self.val_acc(logits, y)
         self.log("val_acc", acc, sync_dist=True, prog_bar=True)
-
-        # print(f"val_loss: {loss}, val_acc: {acc}")
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)

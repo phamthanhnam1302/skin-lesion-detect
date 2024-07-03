@@ -5,13 +5,18 @@ from torch.utils.data import DataLoader
 
 from lightning_train import LitModel
 from pytorch_lightning.loggers import CSVLogger
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from dataframe import Init_dataframe
 from dataset import Custom_Dataset
 from transforms import get_val_transform, get_train_transform
 from models import Models
 
+def calculate_class_weights(df):
+    encoded_labels = df['encoded_dx'].astype(int)
+    class_counts = torch.bincount(torch.tensor(encoded_labels.values))
+    class_weights = 1. / class_counts.float()
+    return class_weights
 
 if __name__ == "__main__":
 
@@ -19,8 +24,8 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", "-n", type=int, help="Number of classes")
     parser.add_argument(
         "--model_name",
-        help="Choose model efficientnet, mobilenetv3, shufflenetv2",
-        default="mobilenetv3",
+        help="Choose model efficientnet, resnet, maxvit",
+        default="resnet",
     )
     parser.add_argument("--csv_file", help="Path to csv file")
     parser.add_argument("--root_dir", help="Root dir of images folder")
@@ -47,18 +52,11 @@ if __name__ == "__main__":
         val_set, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
 
-    model = Models(
-        model_name=args.model_name,
-        num_classes=args.num_classes,
-        feature_extract=False,
-        pre_trained=args.pre_trained,
-    )
+    model = Models(model_name=args.model_name, num_classes=args.num_classes, feature_extract=False, pre_trained=args.pre_trained)
 
-    lit_model = LitModel(
-        model=model.get_model(),
-        num_classes=args.num_classes,
-        lr=args.lr,
-    )
+    class_weights = calculate_class_weights(df.df_train)
+
+    lit_model = LitModel(model=model.get_model(), num_classes=args.num_classes, lr=args.lr, class_weights=class_weights)
 
     checkpoint_callback = ModelCheckpoint(
         "./saved_model",
@@ -67,22 +65,12 @@ if __name__ == "__main__":
         filename=args.model_name + "_{epoch:02d}_{val_loss:.2f}",
     )
 
-    # Create and train the lightweight model
-    trained_model = lit_model.model
-    lightweight_model = model.get_lightweight_model(trained_model)
-
-    lit_lightweight_model = LitModel(
-        model=lightweight_model,
-        num_classes=args.num_classes,
-        lr=args.lr,
-    )
-
-    trainer_lightweight = pl.Trainer(
+    trainer = pl.Trainer(
         max_epochs=args.epochs,
         accelerator="auto",
         devices="auto",
-        logger=CSVLogger("./log", name=f"{args.model_name}_lightweight_logs", version=0),
+        logger=CSVLogger("./log", name=f"{args.model_name}_logs", version=0),
         callbacks=[checkpoint_callback],
     )
 
-    trainer_lightweight.fit(lit_lightweight_model, train_loader, val_loader)
+    trainer.fit(lit_model, train_loader, val_loader)

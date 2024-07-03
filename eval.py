@@ -19,14 +19,7 @@ matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 
-def plot_confusion_matrix(cm, path, classes,
-                          normalize=False,
-                          title='Confusion matrix',
-                          cmap=plt.cm.Blues):
-    """
-    This function prints and plots the confusion matrix.
-    Normalization can be applied by setting `normalize=True`.
-    """
+def plot_confusion_matrix(cm, path, classes, normalize=False, title='Confusion matrix', cmap=plt.cm.Blues):
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
     plt.title(title)
     plt.colorbar()
@@ -46,7 +39,6 @@ def plot_confusion_matrix(cm, path, classes,
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-
     plt.savefig(path)
 
 def save_classification_report(report, path):
@@ -81,23 +73,18 @@ if __name__ == "__main__":
         val_set, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
 
-    model = Models(
-        model_name=args.model_name,
-        num_classes=args.num_classes,
-        feature_extract=False,
-        pre_trained=False,
-    ).get_model()
+    model = Models(model_name=args.model_name, num_classes=args.num_classes, feature_extract=False, pre_trained=False).get_model()
 
+    # Load checkpoint
     checkpoint = torch.load(args.ckpt_path, map_location=device)
-    model_weights = checkpoint["state_dict"]
+    
+    # Filter out unnecessary keys
+    model_weights = {k.replace("model.", ""): v for k, v in checkpoint["state_dict"].items() if k.startswith("model.")}
 
-    for key in list(model_weights):
-        model_weights[key.replace("model.", "")] = model_weights.pop(key)
-        
     model.load_state_dict(model_weights)
-
     model.to(device)
     model.eval()
+
     y_label = []
     y_predict = []
 
@@ -107,12 +94,10 @@ if __name__ == "__main__":
             images = images.to(device)
             outputs = model(images)
             prediction = outputs.max(1, keepdim=True)[1]
-            
             y_label.extend(labels.cpu().numpy())
             y_predict.extend(np.squeeze(prediction.cpu().numpy().T))
 
-    plot_labels = ['akiec', 'bcc', 'bkl', 'df','mel', 'nv', 'vasc', 'ni']
-
+    plot_labels = ['akiec', 'bcc', 'bkl', 'df', 'mel', 'nv', 'vasc', 'ni']
     confusion_mtx = confusion_matrix(y_label, y_predict)
     report = classification_report(y_label, y_predict, target_names=plot_labels, output_dict=True)
 
