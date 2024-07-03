@@ -58,6 +58,11 @@ if __name__ == "__main__":
 
     lit_model = LitModel(model=model.get_model(), num_classes=args.num_classes, lr=args.lr, class_weights=class_weights)
 
+    trained_model = lit_model.model
+    lightweight_model = model.get_lightweight_model(trained_model)
+
+    lit_model = LitModel(model=lightweight_model, num_classes=args.num_classes, lr=args.lr, class_weights=class_weights)
+
     checkpoint_callback = ModelCheckpoint(
         "./saved_model",
         monitor="val_loss",

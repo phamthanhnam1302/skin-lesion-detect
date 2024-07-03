@@ -81,7 +81,7 @@ if __name__ == "__main__":
     # Filter out unnecessary keys
     model_weights = {k.replace("model.", ""): v for k, v in checkpoint["state_dict"].items() if k.startswith("model.")}
 
-    model.load_state_dict(model_weights)
+    model.load_state_dict(model_weights, strict=False)
     model.to(device)
     model.eval()
 
