@@ -23,26 +23,26 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = Models(
-        model_name=model_name,
-        num_classes=num_classes,
+        model_name=args.model_name,
+        num_classes=args.num_classes,
         feature_extract=False,
         pre_trained=False,
     ).get_model()
 
-    transform = get_val_transform(img_size)
+    transform = get_val_transform(args.img_size)
 
-    checkpoint = torch.load(ckpt_path, map_location=device)
+    checkpoint = torch.load(args.ckpt_path, map_location=device)
     model_weights = checkpoint["state_dict"]
 
     # Filter out unnecessary keys
     model_weights = {k.replace("model.", ""): v for k, v in checkpoint["state_dict"].items() if k.startswith("model.")}
 
-    model.load_state_dict(model_weights)
+    model.load_state_dict(model_weights, strict=False)
 
     model.to(device)
     model.eval()
 
-    images = Image.open(img_path).convert('RGB')
+    images = Image.open(args.img_path).convert('RGB')
     images = transform(images)
 
     with torch.no_grad():
